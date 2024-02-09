@@ -81,6 +81,36 @@ __global__ void computeMandelbrot(unsigned *iterations, unsigned width, unsigned
     iterations[y * width + x] = i;
 }
 
+template <typename T>
+__global__ void computeJulia(unsigned *iterations, unsigned width, unsigned height, MandelDim<T> mDim, T cr, T ci)
+{
+    using cuda::std::complex;
+
+    unsigned x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= width || y >= height)
+        return;
+
+    T relY = y / static_cast<T>(height);
+    T relX = x / static_cast<T>(width);
+
+    T zr = mDim.minReal + relX * (mDim.maxReal - mDim.minReal);
+    T zi = mDim.minImag + relY * (mDim.maxImag - mDim.minImag);
+
+    complex<T> c = {cr, ci};
+    complex<T> z = {zr, zi};
+
+    unsigned i{0};
+    for (; i < iterMax; ++i)
+    {
+        z = z * z + c;
+        if (z.real() * z.real() + z.imag() * z.imag() > 1000)
+            break;
+    }
+
+    iterations[y * width + x] = i;
+}
+
 bool dragStart{false};
 bool dragStop{false};
 int x{}, y{};
@@ -120,7 +150,8 @@ void draw(unsigned *itHost, Pixel *image, int width, int height, MandelDim<doubl
     dim3 blockDim = {32, 32};
     // Do more computations if height or width don't divide evenly, kernel checks if current thread is within image
     dim3 gridDim = {ceil(static_cast<float>(width) / blockDim.x), ceil(static_cast<float>(height) / blockDim.y)};
-    computeMandelbrot<<<gridDim, blockDim>>>(itDev, width, height, mDim);
+    // computeMandelbrot<<<gridDim, blockDim>>>(itDev, width, height, mDim);
+    computeJulia<<<gridDim, blockDim>>>(itDev, width, height, mDim, -0.8, 0.156);
     cudaDeviceSynchronize();
     cudaMemcpy(itHost, itDev, width * height * sizeof(unsigned), cudaMemcpyDeviceToHost);
 
@@ -136,7 +167,7 @@ void draw(unsigned *itHost, Pixel *image, int width, int height, MandelDim<doubl
 
 unsigned *itHost;
 Pixel *image;
-MandelDim<double> mDim{-2, 1, -1, 1};
+MandelDim<double> mDim{-2, 2, -2, 2};
 
 int main(int argc, char *argv[])
 {
