@@ -4,6 +4,7 @@ project(mandel)
 
 set(CXX_STANDARD 20)
 set(CUDA_STANDARD 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(glfw3 3.3 REQUIRED)
 find_package(OpenGL REQUIRED)
